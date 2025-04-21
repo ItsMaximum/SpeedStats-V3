@@ -27,7 +27,7 @@ _log.addHandler(ch)
 CONCURRENT_THREADS = 2
 GAME_BATCH_SIZE = 90
 
-runs = []
+runGroups = {}
 
 series = {}
 games = {}
@@ -45,30 +45,11 @@ excludedCategories = ['n2y350ed', '5dw43j0k'] # Subway Surfers - No Coins, Minec
 
 class Run:
     def __init__(self, seriesId: str, timeDirection: int, defaultTimer: int, run: dict):
-        isLevelRun = run.get('levelId') != None
-        levelId = run.get('levelId') if isLevelRun else ''
-        groupHash = run.get('categoryId') + levelId + ''.join(run.get('valueIds'))
-
-        if groupHash not in groups:
-            subcategoryValueNames = []
-            for valueId in run.get('valueIds'):
-                subcategoryValueName = subcategoryValues.get(valueId)
-                if subcategoryValueName != None:
-                    subcategoryValueNames.append(subcategoryValueName)
-
-            levelText = ', ' + levels.get(run.get('levelId')) if isLevelRun else ''
-            subcategoryText = ' - ' + ', '.join(subcategoryValueNames) if len(subcategoryValueNames) > 0 else ''
-            groupName = games.get(run.get('gameId')) + ": " + categories.get(run.get('categoryId')) + levelText + subcategoryText
-        else:
-            groupName = groups.get(groupHash)
-
-        self.groupName = groupName
         self.seriesName = series.get(seriesId)
         self.gameName = games.get(run.get('gameId'))
         self.time = self.getTime(run, defaultTimer)
         self.date = run.get('date') # can be 0 
         self.dateSubmitted = run.get('dateSubmitted') if run.get('dateSubmitted') is not None else 2147483647
-        self.isLevelRun = isLevelRun
         self.isReverseTime = True if timeDirection == 1 else False
         self.defaultTimer = defaultTimer
         self.platformName = platforms.get(run.get('platformId')) # can be None
@@ -93,13 +74,11 @@ class Run:
         
     def toDict(self):
         return {
-            'groupName': self.groupName,
             'seriesName': self.seriesName,
             'gameName': self.gameName,
             'time': self.time,
             'date': self.date,
             'dateSubmitted': self.dateSubmitted,
-            'isLevelRun': self.isLevelRun,
             'isReverseTime': self.isReverseTime,
             'deafultTimer': self.defaultTimer,
             'platformName': self.platformName,
@@ -125,6 +104,24 @@ def joinThreads(threads: list, extend: bool = True):
                 _log.warning("A Return Thread returned None.")
     threads.clear()
     return returnValues
+
+def getGroupName(run: dict):
+    isLevelRun = run.get('levelId') != None
+    levelId = run.get('levelId') if isLevelRun else ''
+    groupHash = run.get('categoryId') + levelId + ''.join(run.get('valueIds'))
+
+    if groupHash not in groups:
+        subcategoryValueNames = []
+        for valueId in run.get('valueIds'):
+            subcategoryValueName = subcategoryValues.get(valueId)
+            if subcategoryValueName != None:
+                subcategoryValueNames.append(subcategoryValueName)
+
+        levelText = ', ' + levels.get(run.get('levelId')) if isLevelRun else ''
+        subcategoryText = ' - ' + ', '.join(subcategoryValueNames) if len(subcategoryValueNames) > 0 else ''
+        return games.get(run.get('gameId')) + ": " + categories.get(run.get('categoryId')) + levelText + subcategoryText
+    else:
+        return groups.get(groupHash)
 
 def getOverviews(elements: list):
     overviews = []
@@ -204,25 +201,26 @@ def exploreLeaderboard(categoryOverview: dict, page: int = 1, type: int = 1):
 
     if type == 1:
         runBatch = GetGameLeaderboard(gameId, categoryId, obsolete = 1, video = 0, verified = 1, page = page).perform()['leaderboard']
-        for player in runBatch['players']:
-            if len(player['id']) != 38: # Not a guest user
-                playerName = player['name'].strip()
-            else:
-                playerName = f"[Guest]{player['name'].strip()}"
-            players[player['id']] = playerName
-
-        for run in runBatch['runs']:
-            runs.append(Run(seriesId, timeDirection, defaultTimer, run))
+        runBatchPlayers = runBatch['players']
+        runBatchRuns = runBatch['runs']
     else:
         runBatch = GetGameLeaderboard2(gameId, categoryId, obsolete = 1, video = 0, verified = 1, page = page).perform()
-        for player in runBatch['playerList']:
-            if len(player['id']) != 38: # Not a guest user
-                playerName = player['name'].strip()
-            else:
-                playerName = f"[Guest]{player['name'].strip()}"
-            players[player['id']] = playerName
-        for run in runBatch['runList']:
-            runs.append(Run(seriesId, timeDirection, defaultTimer, run))
+        runBatchPlayers = runBatch['playerList']
+        runBatchRuns = runBatch['runList']
+
+    for player in runBatchPlayers:
+        if len(player['id']) != 38: # Not a guest user
+            playerName = player['name'].strip()
+        else:
+            playerName = f"[Guest]{player['name'].strip()}"
+        players[player['id']] = playerName
+    for runBatchRun in runBatchRuns:
+        groupName = getGroupName(runBatchRun)
+        run = Run(seriesId, timeDirection, defaultTimer, runBatchRun)
+        if groupName not in runGroups:
+            runGroups[groupName] = [run.toDict()]
+        else:
+            runGroups[groupName].append(run.toDict())
 
     return runBatch['pagination']['pages']
 
@@ -312,12 +310,7 @@ def exploreSeries(seriesOverview: dict):
 
 def dumpData(path: str):
     with open(path, 'w') as file:
-        file.write('[')
-        for i, run in enumerate(runs):
-            if i > 0:
-                file.write(',')
-            json.dump(run.toDict(), file)
-        file.write(']')
+        json.dump(runGroups, file)
 
 def testSeries(path: str, seriesId: str, seriesName: str):
     series[seriesId] = seriesName
