@@ -8,26 +8,20 @@ import logging
 import os
 import sys
 import time
-from env import EXCLUDED_PLAYERS, DB
+from env import EXCLUDED_PLAYERS, DB, DEVEL
 
 excludedPlayers = EXCLUDED_PLAYERS # Requested to be excluded
 
 _log = logging.getLogger('SpeedStats-V3')
 
 def collectGroups(path: str, test: bool):
-    groups = {}
     with open(path, 'r') as file:
-        runs = json.load(file)
-        _log.info(len(runs))
-        if len(runs) < 4000000 and not test:
-            _log.error("There aren't enough runs!")
+        groups = json.load(file)
+        print(len(groups))
+        if len(groups) < 600000 and not test:
+            _log.error("There aren't enough groups!")
             sys.exit(1)
-        for run in runs:
-            if run.get('groupName') not in groups:
-                groups[run.get('groupName')] = [run]
-            else:
-                groups[run.get('groupName')].append(run)
-    return groups
+        return groups
 
 def findNumWRs(runs: list):
     reverseTime = runs[0]['isReverseTime']
@@ -84,6 +78,7 @@ def processGroups(groups: dict):
             bottom = run['place'] + (sf * leaderboardRuns - 1)
             value = top / bottom
 
+            run['groupName'] = groupName
             run['value'] = value
             previousRun = run
             currPlace -= 1
@@ -129,7 +124,7 @@ def exportToDatabase(absPath: str):
         cursor.execute("TRUNCATE TABLE runs")
         cursor.execute(
             f"""
-            LOAD DATA INFILE '{absPath}'
+            LOAD DATA {"LOCAL " if DEVEL else ""}INFILE '{absPath}'
             INTO TABLE runs
             FIELDS TERMINATED BY ',' 
             ENCLOSED BY '\"' 
@@ -164,5 +159,6 @@ def processRuns(jsonPath: str, csvPath: str, test: bool):
     generateCSV(leaderboards, csvPath)
     if not test:
         absPath = os.path.join(os.getcwd(), csvPath)
-        time.sleep(60)
+        if DEVEL:
+            absPath = absPath.replace("\\", "/")
         exportToDatabase(absPath)
