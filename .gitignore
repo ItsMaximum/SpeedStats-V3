@@ -3,5 +3,5 @@ data
 logs
 test.py
 env.py
+__pycache__
 speedruncompy/__pycache__
-temp
