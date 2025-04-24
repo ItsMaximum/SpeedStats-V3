@@ -62,7 +62,7 @@ def processGroups(groups: dict):
         leaderboardRuns = len(leaderboard)
         totalRuns = len(runs)
         runLength = (leaderboard[(leaderboardRuns - 1) // 2]['time'] % 10000000.0) / 60.0
-        lengthWeight = (1.1 - math.pow(1.01, -(runLength + 185)) - math.pow(1.8, -(runLength + 1.2)))
+        lengthWeight = (1.1 - math.pow(1.01, -(runLength + 200)) - math.pow(2.4, -(runLength + 1.2)))
         WRValue = (math.log(totalRuns, 1.7) * numWRs + 120 * math.exp(-100 / totalRuns) + 0.04 * totalRuns) * (1 - (numWRs + 1) / (totalRuns + leaderboardRuns)) * lengthWeight
         sf = (math.log(leaderboardRuns, 10) / leaderboardRuns) + 0.001 if leaderboardRuns > 2 else 0.2
         previousRun = None
@@ -77,6 +77,9 @@ def processGroups(groups: dict):
             top = sf * WRValue * (leaderboardRuns + 1 - run['place'])
             bottom = run['place'] + (sf * leaderboardRuns - 1)
             value = top / bottom
+
+            if run['isLevelRun']:
+                value *= 0.75
 
             run['groupName'] = groupName
             run['value'] = value
