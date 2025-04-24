@@ -78,6 +78,9 @@ def processGroups(groups: dict):
             bottom = run['place'] + (sf * leaderboardRuns - 1)
             value = top / bottom
 
+            if run['isLevelRun']:
+                value *= 0.75
+
             run['groupName'] = groupName
             run['value'] = value
             previousRun = run

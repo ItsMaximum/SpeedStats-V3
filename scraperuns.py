@@ -54,6 +54,7 @@ class Run:
         self.defaultTimer = defaultTimer
         self.platformName = platforms.get(run.get('platformId')) # can be None
         self.playerNames = [players.get(playerId) for playerId in run.get('playerIds')]
+        self.isLevelRun = run.get('levelId') != None
 
     def getTime(self, run: dict, defaultTimer: int):
         if defaultTimer == 0 or defaultTimer == 1: # If default timing is RTA or LRT, check 'time' before 'igt'
@@ -82,7 +83,8 @@ class Run:
             'isReverseTime': self.isReverseTime,
             'deafultTimer': self.defaultTimer,
             'platformName': self.platformName,
-            'playerNames': self.playerNames
+            'playerNames': self.playerNames,
+            'isLevelRun': self.isLevelRun
         }
     
 def testEndpoint(request: BaseRequest):
