@@ -2,10 +2,22 @@ import base64, json
 from .exceptions import *
 import logging
 from ReturnThread import ReturnThread
-from requests import Response, get, post, ReadTimeout
+from requests import Response, ReadTimeout
 from time import sleep
 from typing import Callable, Any
 from env import PROXIES, USE_PROXY
+import cloudscraper
+
+scraper = cloudscraper.create_scraper(
+    browser={
+        'browser': 'chrome',
+        'platform': 'windows',
+        'mobile': False
+    }
+)
+
+get = scraper.get
+post = scraper.post
 
 API_URI = "https://www.speedrun.com/api/v2/"
 API_V1_URI = "https://www.speedrun.com/api/v1/"
