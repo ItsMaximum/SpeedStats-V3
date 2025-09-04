@@ -65,26 +65,40 @@ def processGroups(groups: dict):
         lengthWeight = (1.1 - math.pow(1.01, -(runLength + 200)) - math.pow(2.4, -(runLength + 1.2)))
         WRValue = (math.log(totalRuns, 1.7) * numWRs + 120 * math.exp(-100 / totalRuns) + 0.04 * totalRuns) * (1 - (numWRs + 1) / (totalRuns + leaderboardRuns)) * lengthWeight
         sf = (math.log(leaderboardRuns, 10) / leaderboardRuns) + 0.001 if leaderboardRuns > 2 else 0.2
-        previousRun = None
-        currPlace = leaderboardRuns
 
-        for run in reversed(leaderboard):
-            if previousRun != None and previousRun['time'] == run['time']:
-                run['place'] = previousRun['place']
-            else:
-                run['place'] = currPlace
+        currPlace = 1
+        index = 0
+        while index < leaderboardRuns:
+            currTime = leaderboard[index]['time']
+            tiedPlaces = []
+            runsAreTied = True
+            while runsAreTied:
+                if index < leaderboardRuns:
+                    if leaderboard[index]['time'] == currTime:
+                        tiedPlaces.append(index + 1)
+                    else runsAreTied = False
+                else runsAreTied = False
+                index += 1
 
-            top = sf * WRValue * (leaderboardRuns + 1 - run['place'])
-            bottom = run['place'] + (sf * leaderboardRuns - 1)
-            value = top / bottom
+            numTiedRuns = len(tiedPlaces)
+            totalValue = 0
+            for place in tiedPlaces:
+                top = sf * WRValue * (leaderboardRuns + 1 - place)
+                bottom = place + (sf * leaderboardRuns - 1)
+                value = top / bottom
 
-            if run['isLevelRun']:
-                value *= 0.75
+                if leaderboard[place - 1]['isLevelRun']:
+                    value *= 0.75
 
-            run['groupName'] = groupName
-            run['value'] = value
-            previousRun = run
-            currPlace -= 1
+                totalValue += value
+
+            valuePerRun = totalValue / numTiedRuns
+            for i in range(currPlace - 1, index):
+                leaderboard[i]['value'] = valuePerRun
+                leaderboard[i]['place'] = currPlace
+                leaderboard[i]['groupName'] = groupName
+
+            currPlace = index + 1
         
         leaderboards.append(leaderboard)
     return leaderboards
