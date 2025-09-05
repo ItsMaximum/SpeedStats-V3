@@ -268,7 +268,7 @@ def exploreGame(gameOverview: dict):
 
     gameVariables = game['variables']
     for variable in gameVariables:
-        if variable['isSubcategory'] == True:
+        if variable['isSubcategory'] and not variable['archived']:
             subcategories[variable['id']] = variable['name'].strip()
 
     gameValues = game['values']
